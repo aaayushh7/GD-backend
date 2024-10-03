@@ -155,8 +155,8 @@ const cashfreeOrder = asyncHandler(async (req, res) => {
 
       },
       "order_meta": {
-        "return_url": `http://localhost:5173/order/${order._id.toString()}`,
-        "notify_url": `http://localhost:4000/api/webhook/cashfree`
+        "return_url": `https://cravehub.store/order/${order._id.toString()}`,
+        "notify_url": `https://api.cravehub.store/api/webhook/cashfree`
       }
     }
     var data = null;
