@@ -36,7 +36,7 @@ const CENTER_POINT = {
   latitude: 12.81846,  // Example: Bangalore coordinates
   longitude: 80.04004
 };
-const MAX_RADIUS = 3000; // 3km in meters
+const MAX_RADIUS = 2000000; // 3km in meters
 
 // Function to check if the user is within the allowed radius
 function isWithinAllowedRadius(userLatitude, userLongitude) {
