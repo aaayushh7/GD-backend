@@ -1,11 +1,11 @@
 import User from "../models/userModel.js";
 import asyncHandler from "../middlewares/asyncHandler.js";
 import bcrypt from "bcryptjs";
-import createToken from "../utils/createToken.js";
+import generateToken from "../utils/createToken.js"
 import {load} from '@cashfreepayments/cashfree-js';
 import { OAuth2Client } from "google-auth-library";
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const client = new OAuth2Client("248103381961-v7nahguiu3hi77lg2bbu75se700lnqs9.apps.googleusercontent.com");
 
 const cashfree = await load({
 	mode: "sandbox" 
@@ -25,7 +25,7 @@ const createUser = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
   const newUser = new User({ username, email, password: hashedPassword });
 
-  const jwtToken = generateToken(user._id);
+  const jwtToken = generateToken(User._id);
 
   try {
     await newUser.save();
@@ -84,7 +84,7 @@ const googleSignUp = asyncHandler(async (req, res) => {
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience:
-      process.env.GOOGLE_CLIENT_ID,
+        "248103381961-v7nahguiu3hi77lg2bbu75se700lnqs9.apps.googleusercontent.com",
     });
 
     const { name, email } = ticket.getPayload();
@@ -100,6 +100,7 @@ const googleSignUp = asyncHandler(async (req, res) => {
     }
 
     const jwtToken = generateToken(user._id);
+    
 
     res.status(201).json({
       _id: user._id,
