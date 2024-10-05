@@ -3,10 +3,12 @@ import asyncHandler from "../middlewares/asyncHandler.js";
 import bcrypt from "bcryptjs";
 import createToken from "../utils/createToken.js";
 import {load} from '@cashfreepayments/cashfree-js';
+import { OAuth2Client } from "google-auth-library";
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const cashfree = await load({
 	mode: "sandbox" 
-  
 });
 
 const createUser = asyncHandler(async (req, res) => {
@@ -67,6 +69,49 @@ const loginUser = asyncHandler(async (req, res) => {
     }
   }
 });
+const googleSignUp = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    res.status(400).json({ message: "Google ID token is required" });
+    return;
+  }
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience:
+      process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const { name, email } = ticket.getPayload();
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        username: name,
+        email,
+        password: "googleauth",
+      });
+    }
+
+    createToken(res, user._id);
+
+    res.status(201).json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      isAdmin: user.isAdmin,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Failed to process Google Sign-Up", error: error.message });
+  }
+});
+
+
 
 const logoutCurrentUser = asyncHandler(async (req, res) => {
   res.cookie("jwt", "", {
@@ -174,9 +219,8 @@ const updateUserById = asyncHandler(async (req, res) => {
   }
 });
 
-// New function to create a Cashfree order for user payments
 const createCashfreeOrderForUser = asyncHandler(async (req, res) => {
-  const { orderId, amount } = req.body; // Expect orderId and amount from request body
+  const { orderId, amount } = req.body;
 
   if (!orderId || !amount) {
     res.status(400).json({ error: "Order ID and amount are required." });
@@ -189,7 +233,7 @@ const createCashfreeOrderForUser = asyncHandler(async (req, res) => {
       orderAmount: amount,
       customerName: req.user.username,
       customerEmail: req.user.email,
-      customerPhone: req.user.phone, // Ensure user has phone in the model
+      customerPhone: req.user.phone,
     });
 
     res.json(cashfreeOrder);
@@ -209,5 +253,6 @@ export {
   deleteUserById,
   getUserById,
   updateUserById,
-  createCashfreeOrderForUser, // Export the new Cashfree function
+  createCashfreeOrderForUser,
+  googleSignUp,
 };
