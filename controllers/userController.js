@@ -25,6 +25,8 @@ const createUser = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt);
   const newUser = new User({ username, email, password: hashedPassword });
 
+  const jwtToken = generateToken(user._id);
+
   try {
     await newUser.save();
     createToken(res, newUser._id);
@@ -34,6 +36,7 @@ const createUser = asyncHandler(async (req, res) => {
       username: newUser.username,
       email: newUser.email,
       isAdmin: newUser.isAdmin,
+      token: jwtToken
     });
   } catch (error) {
     res.status(400);
@@ -96,13 +99,14 @@ const googleSignUp = asyncHandler(async (req, res) => {
       });
     }
 
-    createToken(res, user._id);
+    const jwtToken = generateToken(user._id);
 
     res.status(201).json({
       _id: user._id,
       username: user.username,
       email: user.email,
       isAdmin: user.isAdmin,
+      token: jwtToken,
     });
   } catch (error) {
     res
