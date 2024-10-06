@@ -6,18 +6,16 @@ const userSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-
     email: {
       type: String,
       required: true,
       unique: true,
     },
-
     password: {
       type: String,
-      required: true,
+      required: function() { return !this.googleId; }, // Only required if not using Google Sign Up
     },
-
+    googleId: { type: String, unique: true, sparse: true },
     isAdmin: {
       type: Boolean,
       required: true,

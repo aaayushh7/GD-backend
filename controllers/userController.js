@@ -1,7 +1,7 @@
 import User from "../models/userModel.js";
 import asyncHandler from "../middlewares/asyncHandler.js";
 import bcrypt from "bcryptjs";
-import generateToken, { setTokenCookie } from "../utils/createToken.js";
+import {generateToken,  setTokenCookie } from "../utils/createToken.js";
 import { load } from '@cashfreepayments/cashfree-js';
 import { OAuth2Client } from "google-auth-library";
 
@@ -70,56 +70,56 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const googleSignUp = asyncHandler(async (req, res) => {
-  const { token } = req.body;
+  let { googleId, email, name } = req.body;
 
-  if (!token) {
+  // Handle case where data is nested in a 'token' object
+  if (req.body.token) {
+    ({ googleId, email, name } = req.body.token);
+  }
+
+  console.log("Received Google Sign Up data:", { googleId, email, name }); // Debugging log
+
+  if (!googleId || typeof googleId !== 'string') {
     res.status(400);
-    throw new Error("Google ID token is required");
+    throw new Error("Valid Google user ID is required");
   }
 
   try {
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: "248103381961-v7nahguiu3hi77lg2bbu75se700lnqs9.apps.googleusercontent.com",
-    });
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
 
-    const { name, email } = ticket.getPayload();
-
-    let user = await User.findOne({ email });
-
-    if (!user) {
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(googleId, salt);
+      
       user = await User.create({
-        username: name,
+        googleId,
+        username: name || email.split('@')[0],
         email,
-        password: "googleauth", // Note: Consider using a more secure method for Google users
+        password: hashedPassword,
       });
     }
 
-    const jwtToken = generateToken(user._id);
-    
-    console.log("Generated JWT Token:", jwtToken); // Debugging log
+    const token = generateToken(user._id);
+    setTokenCookie(res, token);
 
-    if (typeof jwtToken !== 'string') {
-      throw new Error(`Invalid token type: ${typeof jwtToken}`);
-    }
-
-    setTokenCookie(res, jwtToken);
-
-    res.status(201).json({
+    res.status(200).json({
       _id: user._id,
       username: user.username,
       email: user.email,
       isAdmin: user.isAdmin,
-      token: jwtToken,
+      token,
     });
   } catch (error) {
-    console.error("Google Sign-Up Error:", error); // Debugging log
+    console.error("Google Sign-Up Error:", error);
     res.status(500);
     throw new Error(`Failed to process Google Sign-Up: ${error.message}`);
   }
 });
-
-
 
 const logoutCurrentUser = asyncHandler(async (req, res) => {
   res.cookie("jwt", "", {

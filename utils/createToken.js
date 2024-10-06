@@ -5,6 +5,10 @@ const generateToken = (userId) => {
     throw new Error("UserId is required to generate token");
   }
   
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not defined in environment variables");
+  }
+
   try {
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
       expiresIn: "30d",
@@ -17,7 +21,7 @@ const generateToken = (userId) => {
   }
 };
 
-export const setTokenCookie = (res, token) => {
+const setTokenCookie = (res, token) => {
   if (typeof token !== 'string') {
     console.error("Invalid token type in setTokenCookie:", typeof token);
     throw new Error("Invalid token type");
@@ -31,4 +35,4 @@ export const setTokenCookie = (res, token) => {
   });
 };
 
-export default generateToken;
+export { generateToken, setTokenCookie };
