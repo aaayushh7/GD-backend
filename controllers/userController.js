@@ -91,11 +91,18 @@ const googleSignUp = asyncHandler(async (req, res) => {
       user = await User.create({
         username: name,
         email,
-        password: "googleauth",
+        password: "googleauth", // Note: Consider using a more secure method for Google users
       });
     }
 
     const jwtToken = generateToken(user._id);
+    
+    console.log("Generated JWT Token:", jwtToken); // Debugging log
+
+    if (typeof jwtToken !== 'string') {
+      throw new Error(`Invalid token type: ${typeof jwtToken}`);
+    }
+
     setTokenCookie(res, jwtToken);
 
     res.status(201).json({
@@ -106,6 +113,7 @@ const googleSignUp = asyncHandler(async (req, res) => {
       token: jwtToken,
     });
   } catch (error) {
+    console.error("Google Sign-Up Error:", error); // Debugging log
     res.status(500);
     throw new Error(`Failed to process Google Sign-Up: ${error.message}`);
   }
