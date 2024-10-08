@@ -211,14 +211,17 @@ const getAllOrders = async (req, res) => {
   }
 };
 
-const getUserOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({ user: req.user._id });
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+const getUserOrders = asyncHandler(async (req, res) => {
+  const orders = await Order.find({ user: req.user._id })
+    .sort({ createdAt: -1 }) // Sort by most recent first
+    .select('-__v'); // Exclude the version key
+
+  if (orders.length === 0) {
+    return res.status(404).json({ message: "No orders found for this user" });
   }
-};
+
+  res.json(orders);
+});
 
 const countTotalOrders = async (req, res) => {
   try {
