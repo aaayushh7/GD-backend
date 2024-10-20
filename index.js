@@ -45,9 +45,7 @@ function isWithinAllowedRadius(userLatitude, userLongitude) {
     { latitude: userLatitude, longitude: userLongitude },
     CENTER_POINT
   );
-  // return distance <= MAX_RADIUS;
-  return true;
-
+  return distance <= MAX_RADIUS;
 }
 
 
