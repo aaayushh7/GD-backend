@@ -13,6 +13,7 @@ import {
   markOrderAsPaid,
   markOrderAsDelivered,
   cashfreeOrder, 
+  markOrderAsShipped
   
 } from "../controllers/orderController.js";
 
@@ -29,6 +30,7 @@ router.route("/total-sales").get(calculateTotalSales);
 router.route("/total-sales-by-date").get(calcualteTotalSalesByDate);
 router.route("/:id").get(authenticate, findOrderById);
 router.route("/:id/pay").put(authenticate, markOrderAsPaid);
+router.route("/:id/ship").put(authenticate, authorizeAdmin, markOrderAsShipped);
 router
   .route("/:id/deliver")
   .put(authenticate, authorizeAdmin, markOrderAsDelivered);

@@ -307,6 +307,22 @@ const markOrderAsPaid = async (req, res) => {
   }
 };
 
+const markOrderAsShipped = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (order) {
+      order.isShipped = true;
+      order.shippedAt = Date.now();
+      const updatedOrder = await order.save();
+      res.status(200).json(updatedOrder);
+    } else {
+      res.status(404).json({ error: "Order not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 const markOrderAsDelivered = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
@@ -336,4 +352,5 @@ export {
   findOrderById,
   markOrderAsPaid,
   markOrderAsDelivered,
+  markOrderAsShipped
 };
