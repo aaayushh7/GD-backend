@@ -1,15 +1,15 @@
 import Category from "../models/categoryModel.js";
-import Subcategory from "../models/subcategoryModel.js"; // Add this line
+import Subcategory from "../models/subcategoryModel.js";
 import asyncHandler from "../middlewares/asyncHandler.js";
 import {load} from '@cashfreepayments/cashfree-js';
 
 const cashfree = await load({
-	mode: "sandbox" 
+  mode: "sandbox" 
 });
 
 const createCategory = asyncHandler(async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, image } = req.body;
 
     if (!name) {
       return res.json({ error: "Name is required" });
@@ -21,7 +21,7 @@ const createCategory = asyncHandler(async (req, res) => {
       return res.json({ error: "Already exists" });
     }
 
-    const category = await new Category({ name }).save();
+    const category = await new Category({ name, image }).save();
     res.json(category);
   } catch (error) {
     console.log(error);
@@ -31,7 +31,7 @@ const createCategory = asyncHandler(async (req, res) => {
 
 const updateCategory = asyncHandler(async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, image } = req.body;
     const { categoryId } = req.params;
 
     const category = await Category.findOne({ _id: categoryId });
@@ -41,6 +41,9 @@ const updateCategory = asyncHandler(async (req, res) => {
     }
 
     category.name = name;
+    if (image) {
+      category.image = image;
+    }
 
     const updatedCategory = await category.save();
     res.json(updatedCategory);
