@@ -1,18 +1,19 @@
 import express from "express";
 const router = express.Router();
 import {
-  saveAddress,
-  getUserAddress,
+  createAddress,
+  getUserAddresses,
   updateAddress,
   deleteAddress,
- 
-} from "../controllers/addressController.js";
+  setDefaultAddress
+} from "../controllers/AddressController.js";
 import { authenticate, authorizeAdmin } from "../middlewares/authMiddleware.js";
 
-router.route("/").post(authenticate, saveAddress);
-router.route("/").get(authenticate, getUserAddress);
+router.route("/").post(authenticate, createAddress);
+router.route("/").get(authenticate, getUserAddresses);
 router.route("/:id").put(authenticate, updateAddress);
 router.route("/:id").delete(authenticate, deleteAddress);
+router.route("/:id/default").put(authenticate, setDefaultAddress);
 
 
 export default router;

@@ -1,12 +1,16 @@
 import asyncHandler from "express-async-handler";
 import Address from "../models/addressModel.js";
 
-// @desc    Save user address
+// @desc    Create new address
 // @route   POST /api/address
 // @access  Private
-const saveAddress = asyncHandler(async (req, res) => {
+const createAddress = asyncHandler(async (req, res) => {
   const { address, city, postalCode, country, extraCharge } = req.body;
-
+  
+  // Check if user already has addresses
+  const existingAddresses = await Address.find({ user: req.user._id });
+  
+  // Create new address
   const newAddress = new Address({
     user: req.user._id,
     address,
@@ -14,6 +18,8 @@ const saveAddress = asyncHandler(async (req, res) => {
     postalCode,
     country,
     extraCharge,
+    // Set as default if it's the first address
+    isDefault: existingAddresses.length === 0
   });
 
   const savedAddress = await newAddress.save();
@@ -21,92 +27,94 @@ const saveAddress = asyncHandler(async (req, res) => {
   res.status(201).json(savedAddress);
 });
 
-// @desc    Get user address
+// @desc    Get user addresses
 // @route   GET /api/address
 // @access  Private
-const getUserAddress = asyncHandler(async (req, res) => {
-  const address = await Address.findOne({ user: req.user._id }).sort({ createdAt: -1 });
-
-  if (address) {
-    res.json(address);
-  } else {
-    res.status(404);
-    throw new Error("Address not found");
-  }
+const getUserAddresses = asyncHandler(async (req, res) => {
+  const addresses = await Address.find({ user: req.user._id });
+  
+  res.status(200).json(addresses);
 });
 
-// @desc    Update user address
+// @desc    Update address
 // @route   PUT /api/address/:id
 // @access  Private
 const updateAddress = asyncHandler(async (req, res) => {
-  const { address, city, postalCode, country, extraCharge } = req.body;
+  const { id } = req.params;
+  
+  const address = await Address.findOneAndUpdate(
+    { _id: id, user: req.user._id },
+    { ...req.body },
+    { new: true }
+  );
 
-  const addressToUpdate = await Address.findOne({ _id: req.params.id, user: req.user._id });
-
-  if (addressToUpdate) {
-    addressToUpdate.address = address || addressToUpdate.address;
-    addressToUpdate.city = city || addressToUpdate.city;
-    addressToUpdate.postalCode = postalCode || addressToUpdate.postalCode;
-    addressToUpdate.country = country || addressToUpdate.country;
-    addressToUpdate.extraCharge = extraCharge || addressToUpdate.extraCharge;
-
-    const updatedAddress = await addressToUpdate.save();
-    res.json(updatedAddress);
-  } else {
+  if (!address) {
     res.status(404);
-    throw new Error("Address not found");
+    throw new Error('Address not found');
   }
+
+  res.status(200).json(address);
 });
 
-// @desc    Delete user address
+// @desc    Delete address
 // @route   DELETE /api/address/:id
 // @access  Private
 const deleteAddress = asyncHandler(async (req, res) => {
-  const address = await Address.findOne({ _id: req.params.id, user: req.user._id });
+  const { id } = req.params;
+  
+  const address = await Address.findOneAndDelete({ 
+    _id: id, 
+    user: req.user._id 
+  });
 
-  if (address) {
-    await address.remove();
-    res.json({ message: "Address removed" });
-  } else {
+  if (!address) {
     res.status(404);
-    throw new Error("Address not found");
+    throw new Error('Address not found');
   }
-});
-// @desc    Test post address
-// @route   POST /api/address/test
-// @access  Public
-const testAddressPost = asyncHandler(async (req, res) => {
-    const { address, city, postalCode, country, extraCharge } = req.body;
-  
-    const newAddress = new Address({
-      user: "000000000000000000000000", // Dummy user ID for testing
-      address,
-      city,
-      postalCode,
-      country,
-      extraCharge,
-    });
-  
-    const savedAddress = await newAddress.save();
-  
-    res.status(201).json(savedAddress);
-  });
-  
-  // @desc    Test get addresses
-  // @route   GET /api/address/test
-  // @access  Public
-  const testAddressGet = asyncHandler(async (req, res) => {
-    const addresses = await Address.find({ user: "000000000000000000000000" });
-  
-    res.json(addresses);
-  });
-  
-  export { 
-    saveAddress, 
-    getUserAddress, 
-    updateAddress, 
-    deleteAddress, 
-    testAddressPost, 
-    testAddressGet 
-  };
 
+  // If deleted address was default, set a new default if addresses exist
+  const remainingAddresses = await Address.find({ user: req.user._id });
+  if (remainingAddresses.length > 0 && !remainingAddresses.some(addr => addr.isDefault)) {
+    await Address.findOneAndUpdate(
+      { _id: remainingAddresses[0]._id },
+      { isDefault: true }
+    );
+  }
+
+  res.status(200).json({ message: 'Address removed' });
+});
+
+// @desc    Set default address
+// @route   PUT /api/address/:id/default
+// @access  Private
+const setDefaultAddress = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // First, remove default from all other addresses
+  await Address.updateMany(
+    { user: req.user._id },
+    { isDefault: false }
+  );
+
+  // Then set the specified address as default
+  const address = await Address.findOneAndUpdate(
+    { _id: id, user: req.user._id },
+    { isDefault: true },
+    { new: true }
+  );
+
+  if (!address) {
+    res.status(404);
+    throw new Error('Address not found');
+  }
+
+  res.status(200).json(address);
+});
+
+export {
+  createAddress,
+  getUserAddresses,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress
+};
