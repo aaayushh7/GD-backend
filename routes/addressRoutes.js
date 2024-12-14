@@ -6,7 +6,7 @@ import {
   updateAddress,
   deleteAddress,
   setDefaultAddress
-} from "../controllers/AddressController.js";
+} from "../controllers/addressController.js";
 import { authenticate, authorizeAdmin } from "../middlewares/authMiddleware.js";
 
 router.route("/").post(authenticate, createAddress);
