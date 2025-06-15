@@ -26,12 +26,62 @@ connectDB();
 
 const app = express();
 
-
-app.use(cors({
-  // origin: ['https://www.nsrice.in', 'https://nsrice.in'],
-  origin: true,
+// Enhanced CORS configuration for Capacitor apps
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:8100',
+      'https://localhost',
+      'https://cravehub.store',
+      'https://www.cravehub.store',
+      'capacitor://localhost',
+      'ionic://localhost',
+      'http://localhost',
+      'file://',
+    ];
+    
+    // Allow any localhost with any port for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      console.log('✅ CORS allowed for localhost:', origin);
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS allowed for origin:', origin);
+      callback(null, true);
+    } else {
+      console.log('⚠️ CORS origin not in whitelist:', origin);
+      // Allow all origins for now (you can restrict later)
+      callback(null, true);
+    }
+  },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'x-auth-token', 
+    'Cookie',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Headers',
+    'Origin',
+    'Accept',
+    'X-Requested-With'
+  ],
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 const CENTER_POINT = {
   latitude: 12.81846,  // Example: Bangalore coordinates
@@ -47,8 +97,6 @@ function isWithinAllowedRadius(userLatitude, userLongitude) {
   );
   return distance <= MAX_RADIUS;
 }
-
-
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -95,15 +143,25 @@ app.get("/api/config/paypal", (req, res) => {
   res.send({ clientId: process.env.PAYPAL_CLIENT_ID });
 });
 
-
-// Make cashfree available to other modules
-// app.set('cashfree', cashfree);
-
-// // Cashfree configuration
+// Cashfree configuration
 Cashfree.XClientId = process.env.CASHFREE_APP_ID ;
 Cashfree.XClientSecret = process.env.CASHFREE_SECRET_KEY ;
 Cashfree.XEnvironment = Cashfree.Environment.SANDBOX;
 
-app.listen(port, () => console.log(`Server running on port: ${port}`));
+// Add a health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    cors: 'Enabled for Capacitor apps',
+    cashfree: 'Configured for sandbox'
+  });
+});
+
+app.listen(port, () => {
+  console.log(`🚀 Server running on port: ${port}`);
+  console.log(`🔧 CORS enabled for Capacitor apps`);
+  console.log(`💳 Cashfree configured for sandbox`);
+});
 
 export default app;

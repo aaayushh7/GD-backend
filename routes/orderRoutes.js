@@ -13,9 +13,15 @@ import {
   markOrderAsPaid,
   markOrderAsDelivered,
   cashfreeOrder, 
-  markOrderAsShipped
-  
+  markOrderAsShipped,
+  verifyPayment
 } from "../controllers/orderController.js";
+
+import {
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+  getRazorpayConfig
+} from "../controllers/razorpayController.js";
 
 import { authenticate, authorizeAdmin } from "../middlewares/authMiddleware.js";
 
@@ -35,10 +41,15 @@ router
   .route("/:id/deliver")
   .put(authenticate, authorizeAdmin, markOrderAsDelivered);
 
-// router.route("/:id/cashfree").post(authenticate, cashfreeOrder);
+// Cashfree payment routes
 router.post("/:id/cashfree", authenticate, cashfreeOrder);
 router.post("/:id/verify-payment", authenticate, verifyPayment);
-// router.route("/:id/verify-payment").post(authenticate, verifyPayment);
+
+// Razorpay payment routes
+router.post("/:id/razorpay", authenticate, createRazorpayOrder);
+router.post("/:id/verify-razorpay", authenticate, verifyRazorpayPayment);
+router.get("/config/razorpay", getRazorpayConfig);
+
 // router.route("/coupons").post(authenticate, authorizeAdmin, createCoupon);
 // router.route("/coupons/validate").post(authenticate, validateCoupon);
 
