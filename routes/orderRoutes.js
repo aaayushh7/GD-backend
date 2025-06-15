@@ -35,7 +35,9 @@ router
   .route("/:id/deliver")
   .put(authenticate, authorizeAdmin, markOrderAsDelivered);
 
-router.route("/:id/cashfree").post(authenticate, cashfreeOrder);
+// router.route("/:id/cashfree").post(authenticate, cashfreeOrder);
+router.post("/:id/cashfree", authenticate, cashfreeOrder);
+router.post("/:id/verify-payment", authenticate, verifyPayment);
 // router.route("/:id/verify-payment").post(authenticate, verifyPayment);
 // router.route("/coupons").post(authenticate, authorizeAdmin, createCoupon);
 // router.route("/coupons/validate").post(authenticate, validateCoupon);

@@ -123,7 +123,60 @@ function calcPrices(orderItems) {
   };
 }
 
+const verifyPayment = asyncHandler(async (req, res) => {
+  try {
+    const { paymentSessionId } = req.body;
+    const orderId = req.params.id;
 
+    if (!paymentSessionId) {
+      return res.status(400).json({ error: "Payment session ID is required" });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Verify with Cashfree
+    try {
+      const response = await Cashfree.PGOrderFetchPayments("2022-09-01", order.paymentResult.orderId);
+      const payments = response.data;
+      
+      if (payments && payments.length > 0) {
+        const latestPayment = payments[0];
+        const isPaid = latestPayment.payment_status === 'SUCCESS';
+        
+        if (isPaid && !order.isPaid) {
+          // Update order as paid
+          order.isPaid = true;
+          order.paidAt = new Date();
+          await order.save();
+        }
+        
+        return res.json({
+          isPaid: isPaid,
+          paymentStatus: latestPayment.payment_status,
+          message: isPaid ? 'Payment successful' : 'Payment not completed'
+        });
+      } else {
+        return res.json({
+          isPaid: false,
+          paymentStatus: 'PENDING',
+          message: 'Payment status pending'
+        });
+      }
+    } catch (cashfreeError) {
+      console.error('Cashfree verification error:', cashfreeError);
+      return res.status(500).json({
+        error: 'Failed to verify payment with Cashfree',
+        details: cashfreeError.message
+      });
+    }
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 const cashfreeOrder = asyncHandler(async (req, res) => {
   try {
@@ -132,16 +185,26 @@ const cashfreeOrder = asyncHandler(async (req, res) => {
     }
 
     console.log('Received request body:', req.body);
-    const { orderId, orderAmount, customerName, customerEmail, customerPhone, returnUrl, notifyUrl } = req.body;
+    const { orderAmount, customerName, customerEmail, customerPhone, returnUrl, notifyUrl } = req.body;
+
+    // Validate required fields
+    if (!orderAmount || !customerEmail) {
+      return res.status(400).json({ error: "Missing required fields: orderAmount, customerEmail" });
+    }
 
     const order = await Order.findById(req.params.id).populate("user", "email");
 
     if (!order) {
-      console.log('Order not found:', orderId);
+      console.log('Order not found:', req.params.id);
       return res.status(404).json({ error: "Order not found" });
     }
 
-    console.log('Found order:', order);
+    // Verify order belongs to authenticated user
+    if (order.user._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: "Not authorized to access this order" });
+    }
+
+    console.log('Found order:', order._id);
 
     const orderReq = {
       "order_amount": orderAmount,
@@ -152,55 +215,57 @@ const cashfreeOrder = asyncHandler(async (req, res) => {
         "customer_name": customerName || order.shippingAddress.fullName,
         "customer_phone": customerPhone || order.shippingAddress.phone || "1234567890",
         "customer_email": customerEmail || order.user.email
-
       },
       "order_meta": {
-        "return_url": `https://cravehub.store/order/${order._id.toString()}`,
-        "notify_url": `https://api.cravehub.store/api/webhook/cashfree`
+        // Use the URLs sent from frontend, but fallback to production URLs
+        "return_url": returnUrl || `https://cravehub.store/order/${order._id.toString()}?paymentCompleted=true`,
+        "notify_url": notifyUrl || `https://api.cravehub.store/api/webhook/cashfree`
       }
     }
-    var data = null;
+
+    console.log('Creating Cashfree order with:', orderReq);
 
     try {
       const response = await Cashfree.PGCreateOrder("2022-09-01", orderReq);
       console.log('Cashfree order created:', response.data);
-      data = response.data;
-    } catch (err) {
-      console.log('Error creating Cashfree order:', err);
-      return res.status(500).json({ error: "Failed to create order with Cashfree" });
-    }
+      
+      const data = response.data;
 
-    order.paymentResult = {
-      orderId: data.cf_order_id,
-      orderStatus: data.order_status,
-      paymentSessionId: data.payment_session_id
-    };
-
-    await order.save();
-
-    console.log('Order updated with payment result');
-    return res.json({
-      returnUrl: data.order_meta.return_url,
-      paymentSessionId: data.payment_session_id,
-      cforder: data.cf_order_id
-    });
-
-    res.json({
-      order: order,
-      cashfreeOrder: {
+      // Update order with payment result
+      order.paymentResult = {
         orderId: data.cf_order_id,
         orderStatus: data.order_status,
-        paymentSessionId: data.payment_session_id,
-        paymentLink: data.payment_link
-      }
-    });
+        paymentSessionId: data.payment_session_id
+      };
 
+      await order.save();
+      console.log('Order updated with payment result');
+
+      // Return ONLY ONE response in the format expected by frontend
+      return res.json({
+        paymentSessionId: data.payment_session_id,
+        cfOrderId: data.cf_order_id,
+        orderStatus: data.order_status,
+        returnUrl: data.order_meta.return_url,
+        paymentLink: data.payment_link
+      });
+
+    } catch (cashfreeError) {
+      console.log('Error creating Cashfree order:', cashfreeError);
+      return res.status(500).json({ 
+        error: "Failed to create order with Cashfree",
+        details: cashfreeError.response?.data || cashfreeError.message
+      });
+    }
 
   } catch (error) {
-    console.error('Error in createCashfreeOrder:', error);
-    res.status(500).json({ error: error.message || "Cashfree order creation failed", stack: error.stack });
+    console.error('Error in cashfreeOrder:', error);
+    res.status(500).json({ 
+      error: error.message || "Cashfree order creation failed", 
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
-})
+});
 
 const getAllOrders = async (req, res) => {
   try {
@@ -345,6 +410,7 @@ export {
   createOrder,
   cashfreeOrder,
   getAllOrders,
+  verifyPayment,
   getUserOrders,
   countTotalOrders,
   calculateTotalSales,
