@@ -5,8 +5,26 @@ import asyncHandler from "./asyncHandler.js";
 const authenticate = asyncHandler(async (req, res, next) => {
   let token;
 
-  // Read JWT from the 'jwt' cookie
+  // Try multiple sources for the token
+  // 1. Read JWT from the 'jwt' cookie (original method)
   token = req.cookies.jwt;
+  
+  // 2. If no cookie, try Authorization header
+  if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+  
+  // 3. If no Authorization header, try x-auth-token header
+  if (!token && req.headers['x-auth-token']) {
+    token = req.headers['x-auth-token'];
+  }
+  
+  // 4. Debug logging
+  console.log('🔍 Auth middleware - Token sources:');
+  console.log('Cookie jwt:', req.cookies.jwt ? 'Found' : 'Not found');
+  console.log('Authorization header:', req.headers.authorization ? 'Found' : 'Not found');
+  console.log('x-auth-token header:', req.headers['x-auth-token'] ? 'Found' : 'Not found');
+  console.log('Final token:', token ? 'Found' : 'Not found');
 
   if (token) {
     try {
