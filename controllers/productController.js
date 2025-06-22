@@ -10,7 +10,7 @@ const cashfree = await load({
 
 const addProduct = asyncHandler(async (req, res) => {
   try {
-    const { name, description, price, category, quantity, brand } = req.fields;
+    const { name, description, price, category, quantity, brand, image } = req.fields;
 
     // Validation
     switch (true) {
@@ -26,6 +26,8 @@ const addProduct = asyncHandler(async (req, res) => {
         return res.json({ error: "Category is required" });
       case !quantity:
         return res.json({ error: "Quantity is required" });
+      case !image:
+        return res.json({ error: "Image is required" });
     }
 
     const product = new Product({ ...req.fields });
