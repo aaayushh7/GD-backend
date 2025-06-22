@@ -1,16 +1,28 @@
 import asyncHandler from "../middlewares/asyncHandler.js";
 import Product from "../models/productModel.js";
 import {load} from '@cashfreepayments/cashfree-js';
+import path from 'path';
+import aws from "aws-sdk";
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const s3 = new aws.S3({
+  endpoint: process.env.R2_ENDPOINT,
+  accessKeyId: process.env.R2_ACCESS_KEY_ID,
+  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+  signatureVersion: 'v4',
+  region: 'auto',
+});
 
 const cashfree = await load({
 	mode: "sandbox" 
-  
 });
-
 
 const addProduct = asyncHandler(async (req, res) => {
   try {
     const { name, description, price, category, quantity, brand } = req.fields;
+    const { image } = req.files || {};
 
     // Validation
     switch (true) {
@@ -26,18 +38,27 @@ const addProduct = asyncHandler(async (req, res) => {
         return res.json({ error: "Category is required" });
       case !quantity:
         return res.json({ error: "Quantity is required" });
+      case !image:
+        return res.json({ error: "Image is required" });
     }
 
-    // Get the image URL from the fields
-    const imageUrl = req.fields.imageUrl;
-    
-    if (!imageUrl) {
-      return res.json({ error: "Image is required" });
-    }
+    // Upload image to R2
+    const key = `image-${Date.now()}${path.extname(image.name)}`;
+    await s3.putObject({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+      Body: require('fs').createReadStream(image.path),
+      ContentType: image.type,
+      ACL: 'public-read'
+    }).promise();
 
+    // Create the public URL for the image
+    const imageUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
+
+    // Create product with the public URL
     const productData = {
       ...req.fields,
-      image: imageUrl // Use the imageUrl as the image field
+      image: imageUrl
     };
 
     const product = new Product(productData);
