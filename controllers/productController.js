@@ -11,6 +11,7 @@ const cashfree = await load({
 const addProduct = asyncHandler(async (req, res) => {
   try {
     const { name, description, price, category, quantity, brand, image } = req.fields;
+    const { files } = req.files || {};
 
     // Validation
     switch (true) {
@@ -26,11 +27,24 @@ const addProduct = asyncHandler(async (req, res) => {
         return res.json({ error: "Category is required" });
       case !quantity:
         return res.json({ error: "Quantity is required" });
-      case !image:
+      case !image && !files?.image:
         return res.json({ error: "Image is required" });
     }
 
-    const product = new Product({ ...req.fields });
+    // If image is a URL string, use it directly
+    let imageUrl = image;
+    
+    // If image is a file, use the file path
+    if (files?.image) {
+      imageUrl = files.image.path;
+    }
+
+    const productData = {
+      ...req.fields,
+      image: imageUrl
+    };
+
+    const product = new Product(productData);
     await product.save();
     res.json(product);
   } catch (error) {
