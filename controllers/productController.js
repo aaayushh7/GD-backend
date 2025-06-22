@@ -4,6 +4,8 @@ import {load} from '@cashfreepayments/cashfree-js';
 import path from 'path';
 import aws from "aws-sdk";
 import dotenv from 'dotenv';
+import { createReadStream } from 'fs';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
@@ -47,7 +49,7 @@ const addProduct = asyncHandler(async (req, res) => {
     await s3.putObject({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: key,
-      Body: require('fs').createReadStream(image.path),
+      Body: createReadStream(image.path),
       ContentType: image.type,
       ACL: 'public-read'
     }).promise();
