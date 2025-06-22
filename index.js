@@ -26,7 +26,7 @@ connectDB();
 
 const app = express();
 
-// Enhanced CORS configuration for Capacitor apps
+// Enhanced CORS configuration for all domains
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, Postman, etc.)
@@ -39,6 +39,10 @@ const corsOptions = {
       'https://localhost',
       'https://cravehub.store',
       'https://www.cravehub.store',
+      'https://api.cravehub.store',
+      'http://cravehub.store',
+      'http://www.cravehub.store',
+      'http://api.cravehub.store',
       'capacitor://localhost',
       'ionic://localhost',
       'http://localhost',
@@ -47,17 +51,14 @@ const corsOptions = {
     
     // Allow any localhost with any port for development
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      console.log('✅ CORS allowed for localhost:', origin);
       return callback(null, true);
     }
     
     // Check if origin is in allowed list
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('✅ CORS allowed for origin:', origin);
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log('⚠️ CORS origin not in whitelist:', origin);
-      // Allow all origins for now (you can restrict later)
+      // For development and testing, allow all origins
       callback(null, true);
     }
   },
@@ -78,10 +79,20 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Handle preflight requests explicitly
+// Handle preflight requests
 app.options('*', cors(corsOptions));
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Access-Control-Allow-Origin');
+  next();
+});
 
 const CENTER_POINT = {
   latitude: 12.81846,  // Example: Bangalore coordinates
