@@ -6,11 +6,23 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Initialize Razorpay with fallback for development
+let razorpay;
+try {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID || 'dummy_key_id',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_key_secret',
+  });
+} catch (error) {
+  console.warn('Warning: Razorpay initialization failed. Payment features will be limited.');
+  razorpay = {
+    orders: {
+      create: async () => {
+        throw new Error('Razorpay is not properly configured');
+      }
+    }
+  };
+}
 
 // Create Razorpay order
 const createRazorpayOrder = asyncHandler(async (req, res) => {
